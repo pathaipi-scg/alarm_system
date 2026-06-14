@@ -57,8 +57,8 @@ def home(request: Request):
         mp3_files = sorted([f for f in os.listdir(MP3_FOLDER) if f.lower().endswith(".mp3")])
 
     cur.execute("""
-        SELECT AlarmId, TagPath, Mp3File, AlarmMode,
-               ThresholdHigh, ThresholdLow,
+        SELECT AlarmId, TagId, TagPath, AlarmMode,
+               ThresholdHigh, ThresholdLow, Mp3File,
                Priority, EnableAlarm
         FROM Alarm_Lists
         ORDER BY TagPath
@@ -76,6 +76,7 @@ def home(request: Request):
 
 @app.post("/save")
 def save_alarm(
+    alarmid: str = Form(""),
     tagid: int = Form(...),
     tagpath: str = Form(...),
     alarmmode: str = Form(...),
@@ -87,34 +88,72 @@ def save_alarm(
     conn = get_conn()
     cur = conn.cursor()
 
+    if alarmid:
+        cur.execute("""
+            UPDATE Alarm_Lists
+            SET TagId = ?,
+                TagPath = ?,
+                AlarmMode = ?,
+                ThresholdHigh = ?,
+                ThresholdLow = ?,
+                Mp3File = ?,
+                Priority = ?,
+                UpdatedTime = GETDATE()
+            WHERE AlarmId = ?
+        """, (
+            tagid,
+            tagpath,
+            alarmmode,
+            thresholdhigh,
+            thresholdlow,
+            mp3file,
+            priority,
+            int(alarmid)
+        ))
+    else:
+        cur.execute("""
+            INSERT INTO Alarm_Lists (
+                TagId,
+                TagPath,
+                AlarmMode,
+                ThresholdHigh,
+                ThresholdLow,
+                Mp3File,
+                Priority,
+                RepeatEnable,
+                EnableAlarm,
+                CreatedTime,
+                UpdatedTime
+            )
+            VALUES (
+                ?, ?, ?, ?, ?, ?, ?, 1, 1,
+                GETDATE(),
+                GETDATE()
+            )
+        """, (
+            tagid,
+            tagpath,
+            alarmmode,
+            thresholdhigh,
+            thresholdlow,
+            mp3file,
+            priority
+        ))
+
+    conn.commit()
+    conn.close()
+
+    return RedirectResponse("/", status_code=303)
+
+@app.post("/delete/{alarm_id}")
+def delete_alarm(alarm_id: int):
+    conn = get_conn()
+    cur = conn.cursor()
+
     cur.execute("""
-        INSERT INTO Alarm_Lists (
-            TagId,
-            TagPath,
-            AlarmMode,
-            ThresholdHigh,
-            ThresholdLow,
-            Mp3File,
-            Priority,
-            RepeatEnable,
-            EnableAlarm,
-            CreatedTime,
-            UpdatedTime
-        )
-        VALUES (
-            ?, ?, ?, ?, ?, ?, ?, 1, 1,
-            GETDATE(),
-            GETDATE()
-        )
-    """, (
-        tagid,
-        tagpath,
-        alarmmode,
-        thresholdhigh,
-        thresholdlow,
-        mp3file,
-        priority
-    ))
+        DELETE FROM Alarm_Lists
+        WHERE AlarmId = ?
+    """, (alarm_id,))
 
     conn.commit()
     conn.close()

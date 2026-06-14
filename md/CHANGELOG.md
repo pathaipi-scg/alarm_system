@@ -15,6 +15,30 @@ All significant project changes should be documented here.
     
 - Alarm list display
     
+### 2026-06-14
+
+Change Summary
+
+Add edit and delete functionality for Current Alarm Mapping
+
+Files Modified
+
+- alarm_list.py
+- templates/alarm_list.html
+- md/CHANGELOG.md
+
+Reason
+
+Allow saved alarm mappings to be updated or removed from the existing alarm list page.
+
+Risks
+
+Low. Changes are limited to the alarm mapping save/delete flow and table actions.
+
+Rollback Method
+
+Revert Git Commit
+
 
 ### Planned
 

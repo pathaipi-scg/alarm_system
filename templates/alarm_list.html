@@ -158,6 +158,20 @@ body {
     padding: 2px 4px;
 }
 
+.row-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.inline-form {
+    display: inline;
+    margin: 0;
+}
+
+.edit-click {
+    cursor: pointer;
+}
+
 </style>
 
 <h1 class="page-title">Alarm List V1</h1>
@@ -201,6 +215,8 @@ body {
 
 <form method="post" action="/save">
 
+    <input type="hidden" id="alarm_id" name="alarmid">
+
     <div>
         <label>Selected Tag</label><br>
         <input type="text" id="tag_path" name="tagpath" readonly>
@@ -224,7 +240,7 @@ body {
 
     <div>
         <label>Alarm Mode</label><br>
-        <select name="alarmmode">
+        <select id="alarm_mode" name="alarmmode">
             <option value="HIGH">HIGH</option>
             <option value="LOW">LOW</option>
             <option value="CHANGE">CHANGE</option>
@@ -235,21 +251,21 @@ body {
 
     <div>
         <label>Threshold High</label><br>
-        <input type="number" step="0.01" name="thresholdhigh">
+        <input type="number" step="0.01" id="threshold_high" name="thresholdhigh">
     </div>
 
     <br>
 
     <div>
         <label>Threshold Low</label><br>
-        <input type="number" step="0.01" name="thresholdlow">
+        <input type="number" step="0.01" id="threshold_low" name="thresholdlow">
     </div>
 
     <br>
 
     <div>
         <label>Priority</label><br>
-        <input type="number" name="priority" value="1">
+        <input type="number" id="priority" name="priority" value="1">
     </div>
 
     <br>
@@ -265,26 +281,28 @@ body {
 <table class="mapping-table">
     <thead>
         <tr>
-            <th>Tag Path</th>
-            <th>MP3 File</th>
-            <th>Mode</th>
-            <th>High</th>
-            <th>Low</th>
+            <th>AlarmId</th>
+            <th>TagPath</th>
+            <th>AlarmMode</th>
+            <th>ThresholdHigh</th>
+            <th>ThresholdLow</th>
+            <th>Mp3File</th>
             <th>Priority</th>
-            <th>Enable</th>
+            <th>EnableAlarm</th>
+            <th>Actions</th>
         </tr>
     </thead>
 
     <tbody>
     {% for a in alarms %}
         <tr>
+            <td>{{ a.AlarmId }}</td>
             <td>{{ a.TagPath }}</td>
-            <td>{{ a.Mp3File }}</td>
             <td>{{ a.AlarmMode }}</td>
             <td>{{ a.ThresholdHigh }}</td>
             <td>{{ a.ThresholdLow }}</td>
+            <td>{{ a.Mp3File }}</td>
             <td>{{ a.Priority }}</td>
-
             <td>
                 {% if a.EnableAlarm %}
                     <span class="enabled">YES</span>
@@ -292,6 +310,37 @@ body {
                     <span class="disabled">NO</span>
                 {% endif %}
             </td>
+            <td>
+                <div class="row-actions">
+                    <button
+                        type="button"
+                        class="edit-click"
+                        data-alarmid="{{ a.AlarmId }}"
+                        data-tagid="{{ a.TagId }}"
+                        data-tagpath="{{ a.TagPath }}"
+                        data-alarmmode="{{ a.AlarmMode }}"
+                        data-thresholdhigh="{{ a.ThresholdHigh if a.ThresholdHigh is not none else '' }}"
+                        data-thresholdlow="{{ a.ThresholdLow if a.ThresholdLow is not none else '' }}"
+                        data-mp3file="{{ a.Mp3File }}"
+                        data-priority="{{ a.Priority }}"
+                    >
+                        Edit
+                    </button>
+
+                    <form
+                        method="post"
+                        action="/delete/{{ a.AlarmId }}"
+                        class="inline-form"
+                        onsubmit="return confirm('Delete this alarm mapping?');"
+                    >
+                        <button type="submit">Delete</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+    {% else %}
+        <tr>
+            <td colspan="9">No alarm mappings found.</td>
         </tr>
     {% endfor %}
     </tbody>
@@ -308,6 +357,8 @@ document.querySelectorAll(".tag-click").forEach(el => {
         document.querySelectorAll(".tag-click").forEach(x => {
             x.classList.remove("selected-tag");
         });
+
+        document.getElementById("alarm_id").value = "";
 
         el.classList.add("selected-tag");
 
@@ -329,10 +380,54 @@ document.querySelectorAll(".mp3-click").forEach(el => {
             x.classList.remove("selected-mp3");
         });
 
+        document.getElementById("alarm_id").value = "";
+
         el.classList.add("selected-mp3");
 
         document.getElementById("mp3_file").value =
             el.dataset.file;
+
+    });
+
+});
+
+document.querySelectorAll(".edit-click").forEach(el => {
+
+    el.addEventListener("click", () => {
+
+        document.getElementById("alarm_id").value =
+            el.dataset.alarmid;
+
+        document.getElementById("tag_path").value =
+            el.dataset.tagpath;
+
+        document.getElementById("tag_id").value =
+            el.dataset.tagid;
+
+        document.getElementById("alarm_mode").value =
+            el.dataset.alarmmode;
+
+        document.getElementById("threshold_high").value =
+            el.dataset.thresholdhigh;
+
+        document.getElementById("threshold_low").value =
+            el.dataset.thresholdlow;
+
+        document.getElementById("mp3_file").value =
+            el.dataset.mp3file;
+
+        document.getElementById("priority").value =
+            el.dataset.priority;
+
+        document.querySelectorAll(".tag-click").forEach(x => {
+            x.classList.remove("selected-tag");
+        });
+
+        document.querySelectorAll(".mp3-click").forEach(x => {
+            x.classList.remove("selected-mp3");
+        });
+
+        window.scrollTo({ top: 0, behavior: "smooth" });
 
     });
 
