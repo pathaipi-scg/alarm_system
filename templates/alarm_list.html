@@ -1,0 +1,36 @@
+
+{% extends "base.html" %}
+{% block content %}
+<h2>Alarm List V1</h2>
+<div style="display:flex;gap:20px">
+<div style="width:40%">
+<h3>OPC Tree</h3>
+<pre>{{ tree }}</pre>
+</div>
+<div style="width:30%">
+<h3>MP3 Files</h3>
+<ul>
+{% for f in mp3_files %}<li>{{f}}</li>{% endfor %}
+</ul>
+</div>
+</div>
+
+<h3>Current Mapping</h3>
+<table border="1">
+<tr>
+<th>Tag</th><th>MP3</th><th>Mode</th>
+<th>UCL</th><th>LCL</th><th>Priority</th><th>Enable</th>
+</tr>
+{% for a in alarms %}
+<tr>
+<td>{{a.TagPath}}</td>
+<td>{{a.Mp3File}}</td>
+<td>{{a.AlarmMode}}</td>
+<td>{{a.ThresholdHigh}}</td>
+<td>{{a.ThresholdLow}}</td>
+<td>{{a.Priority}}</td>
+<td>{{a.EnableAlarm}}</td>
+</tr>
+{% endfor %}
+</table>
+{% endblock %}
