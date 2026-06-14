@@ -1,6 +1,6 @@
 
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import pyodbc, os
@@ -20,21 +20,12 @@ def get_conn():
 
 def build_tree(rows):
     tree = {}
-
     for tagid, path, dtype in rows:
         parts = path.split("/")
         node = tree
-
         for p in parts[:-1]:
             node = node.setdefault(p, {})
-
-        node[parts[-1]] = {
-            "tagid": tagid,
-            "datatype": dtype,
-            "fullpath": path,
-            "_leaf": True
-        }
-
+        node[parts[-1]] = {"tagid": tagid, "datatype": dtype, "_leaf": True}
     return tree
 
 @app.get("/", response_class=HTMLResponse)
@@ -67,56 +58,9 @@ def home(request: Request):
 
     conn.close()
 
-    return templates.TemplateResponse(request, "alarm_list.html", {
+    return templates.TemplateResponse("alarm_list.html", {
         "request": request,
         "tree": tree,
         "mp3_files": mp3_files,
         "alarms": alarms
     })
-
-@app.post("/save")
-def save_alarm(
-    tagid: int = Form(...),
-    tagpath: str = Form(...),
-    alarmmode: str = Form(...),
-    thresholdhigh: float = Form(None),
-    thresholdlow: float = Form(None),
-    mp3file: str = Form(...),
-    priority: int = Form(1)
-):
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("""
-        INSERT INTO Alarm_Lists (
-            TagId,
-            TagPath,
-            AlarmMode,
-            ThresholdHigh,
-            ThresholdLow,
-            Mp3File,
-            Priority,
-            RepeatEnable,
-            EnableAlarm,
-            CreatedTime,
-            UpdatedTime
-        )
-        VALUES (
-            ?, ?, ?, ?, ?, ?, ?, 1, 1,
-            GETDATE(),
-            GETDATE()
-        )
-    """, (
-        tagid,
-        tagpath,
-        alarmmode,
-        thresholdhigh,
-        thresholdlow,
-        mp3file,
-        priority
-    ))
-
-    conn.commit()
-    conn.close()
-
-    return RedirectResponse("/", status_code=303)
