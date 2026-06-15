@@ -3,8 +3,14 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+
 import pyodbc, os
+import subprocess
+import sys
+
 from config.config import *
+
+from pyModbusTCP.client import ModbusClient
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -17,6 +23,47 @@ def get_conn():
         f"DRIVER={{ODBC Driver 17 for SQL Server}};"
         f"SERVER={SQL_SERVER};DATABASE={SQL_DB};UID={SQL_USER};PWD={SQL_PASS};"
     )
+
+def reload_alarm():
+
+    try:
+
+        c = ModbusClient(
+            host="172.28.231.251",
+            port=502,
+            auto_open=True
+        )
+
+        regs = c.read_holding_registers(
+            12002,
+            1
+        )
+
+        if not regs:
+
+            print(
+                "READ RELOAD_ALARM FAILED"
+            )
+
+            return
+
+        current = regs[0]
+
+        c.write_single_register(
+            12002,
+            current + 1
+        )
+
+        print(
+            f"RELOAD_ALARM => {current+1}"
+        )
+
+    except Exception as ex:
+
+        print(
+            "RELOAD_ALARM ERROR:",
+            ex
+        )
 
 def build_tree(rows):
     tree = {}
@@ -46,8 +93,13 @@ def home(request: Request):
         SELECT TagId, Path, DataType
         FROM TagMaster
         WHERE IsActive = 1
+        AND TagId NOT IN (
+            SELECT TagId
+            FROM Alarm_Lists
+        )
         ORDER BY Path
     """)
+
     tags = cur.fetchall()
 
     tree = build_tree(tags)
@@ -87,6 +139,24 @@ def save_alarm(
 ):
     conn = get_conn()
     cur = conn.cursor()
+
+    # กัน Tag ซ้ำ
+    if not alarmid:
+
+        cur.execute("""
+            SELECT COUNT(*)
+            FROM Alarm_Lists
+            WHERE TagId = ?
+        """, (tagid,))
+
+        if cur.fetchone()[0] > 0:
+
+            conn.close()
+
+            return RedirectResponse(
+                "/",
+                status_code=303
+            )
 
     if alarmid:
         cur.execute("""
@@ -142,6 +212,7 @@ def save_alarm(
 
     conn.commit()
     conn.close()
+    reload_alarm()
 
     return RedirectResponse("/", status_code=303)
 
@@ -157,5 +228,40 @@ def delete_alarm(alarm_id: int):
 
     conn.commit()
     conn.close()
+    reload_alarm()
 
     return RedirectResponse("/", status_code=303)
+
+@app.post("/refresh")
+def refresh_browser():
+
+    #subprocess.Popen([
+    subprocess.run([
+        sys.executable,
+        r"D:\AI\opc_service\app\browser.py"
+    ])
+
+    conn = get_conn()
+    cur = conn.cursor()
+
+    cur.execute("""
+        DELETE a
+        FROM Alarm_Lists a
+        INNER JOIN TagMaster t
+            ON a.TagId = t.TagId
+        WHERE t.IsActive = 0
+    """)
+
+    deleted = cur.rowcount
+
+    conn.commit()
+    conn.close()
+
+    if deleted > 0:
+        print(f"DELETE INVALID ALARMS = {deleted}")
+        reload_alarm()
+
+    return RedirectResponse(
+        "/",
+        status_code=303
+    )
