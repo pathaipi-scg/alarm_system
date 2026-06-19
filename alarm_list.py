@@ -16,7 +16,7 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-MP3_FOLDER = r"Z:\\"
+# MP3_FOLDER and BROWSER_SCRIPT come from config.config (env-backed, with defaults)
 
 def get_conn():
     return pyodbc.connect(
@@ -111,7 +111,7 @@ def home(request: Request):
     cur.execute("""
         SELECT AlarmId, TagId, TagPath, AlarmMode,
                ThresholdHigh, ThresholdLow, Mp3File,
-               Priority, EnableAlarm
+               Priority, EnableAlarm, [Repeat]
         FROM Alarm_Lists
         ORDER BY TagPath
     """)
@@ -135,8 +135,17 @@ def save_alarm(
     thresholdhigh: float = Form(None),
     thresholdlow: float = Form(None),
     mp3file: str = Form(...),
-    priority: int = Form(1)
+    priority: int = Form(1),
+    repeatcount: str = Form("3")
 ):
+    # default to 3 when blank or invalid
+    try:
+        repeat = int(repeatcount)
+    except (ValueError, TypeError):
+        repeat = 3
+    if repeat < 1:
+        repeat = 3
+
     conn = get_conn()
     cur = conn.cursor()
 
@@ -168,6 +177,7 @@ def save_alarm(
                 ThresholdLow = ?,
                 Mp3File = ?,
                 Priority = ?,
+                [Repeat] = ?,
                 UpdatedTime = GETDATE()
             WHERE AlarmId = ?
         """, (
@@ -178,6 +188,7 @@ def save_alarm(
             thresholdlow,
             mp3file,
             priority,
+            repeat,
             int(alarmid)
         ))
     else:
@@ -190,13 +201,14 @@ def save_alarm(
                 ThresholdLow,
                 Mp3File,
                 Priority,
+                [Repeat],
                 RepeatEnable,
                 EnableAlarm,
                 CreatedTime,
                 UpdatedTime
             )
             VALUES (
-                ?, ?, ?, ?, ?, ?, ?, 1, 1,
+                ?, ?, ?, ?, ?, ?, ?, ?, 1, 1,
                 GETDATE(),
                 GETDATE()
             )
@@ -207,7 +219,8 @@ def save_alarm(
             thresholdhigh,
             thresholdlow,
             mp3file,
-            priority
+            priority,
+            repeat
         ))
 
     conn.commit()
@@ -238,7 +251,7 @@ def refresh_browser():
     #subprocess.Popen([
     subprocess.run([
         sys.executable,
-        r"D:\AI\opc_service\app\browser.py"
+        BROWSER_SCRIPT
     ])
 
     conn = get_conn()

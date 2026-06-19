@@ -7,6 +7,54 @@ All significant project changes should be documented here.
 
 ## Unreleased
 
+### 2026-06-19 (Repeat field)
+
+Change Summary
+
+Add a "Repeat" field (times to play, default 3) to the Create Alarm form, persisted to the new Alarm_Lists.[Repeat] int column. save_alarm reads repeatcount, falling back to 3 when blank/invalid; INSERT/UPDATE write [Repeat]; home() SELECT and the Edit button/JS carry the value so editing restores it.
+
+Files Modified
+
+- alarm_list.py
+- templates/alarm_list.html
+- md/CHANGELOG.md
+
+Reason
+
+Let operators configure how many times an alarm sound plays.
+
+Risks
+
+Low. [Repeat] is nullable; existing rows stay NULL and the form defaults to 3. Bracketed because Repeat is a SQL reserved word. The runtime sound engine (separate project) must read [Repeat] to honor it.
+
+Rollback Method
+
+Revert Git Commit
+
+### 2026-06-19 (paths to .env)
+
+Change Summary
+
+Move filesystem paths MP3_FOLDER (Z:\) and the OPC browser.py script path out of alarm_list.py into config/config.py, read from .env via os.getenv with the previous hardcoded values as defaults. Lets each machine point MP3_FOLDER at a local test folder without code edits; production is unaffected when .env omits them.
+
+Files Modified
+
+- config/config.py
+- alarm_list.py
+- md/CHANGELOG.md
+
+Reason
+
+Allow local testing of the Test-sound feature without mapping Z:\, and make deploy not require editing code to switch paths.
+
+Risks
+
+Very low. Defaults equal the prior hardcoded values, so behavior is identical unless .env sets MP3_FOLDER / BROWSER_SCRIPT. No DB or runtime contract change.
+
+Rollback Method
+
+Revert Git Commit
+
 ### 2026-06-19
 
 Change Summary

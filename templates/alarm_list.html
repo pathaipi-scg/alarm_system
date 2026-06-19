@@ -390,6 +390,13 @@ button {
 
             <br>
 
+            <div>
+                <label>Repeat (times to play, default 3)</label><br>
+                <input type="number" min="1" id="repeat_count" name="repeatcount" value="3">
+            </div>
+
+            <br>
+
             <button type="submit">
                 Save Alarm
             </button>
@@ -429,6 +436,7 @@ button {
                         data-thresholdlow="{{ a.ThresholdLow if a.ThresholdLow is not none else '' }}"
                         data-mp3file="{{ a.Mp3File }}"
                         data-priority="{{ a.Priority }}"
+                        data-repeat="{{ a.Repeat if a.Repeat is not none else 3 }}"
                     >
                         Edit
                     </button>
@@ -532,6 +540,9 @@ document.querySelectorAll(".edit-click").forEach(el => {
 
         document.getElementById("priority").value =
             el.dataset.priority;
+
+        document.getElementById("repeat_count").value =
+            el.dataset.repeat || "3";
 
         document.querySelectorAll(".tag-click").forEach(x => {
             x.classList.remove("selected-tag");

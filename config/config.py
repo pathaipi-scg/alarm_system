@@ -23,3 +23,7 @@ INFLUX_PASS = os.getenv("INFLUX_PASS")
 
 # Poller
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "5"))
+
+# Filesystem paths (default to production values; override in .env per machine)
+MP3_FOLDER = os.getenv("MP3_FOLDER", r"")
+BROWSER_SCRIPT = os.getenv("BROWSER_SCRIPT", r"D:\AI\opc_service\app\browser.py")
