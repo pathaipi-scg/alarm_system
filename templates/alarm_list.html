@@ -79,26 +79,47 @@ button {
 
 .top-row {
     display: flex;
-    gap: 12px;
-    align-items: flex-start;
+    align-items: stretch;
+    height: 500px;
 }
 
 .opc-panel {
-    width: 42%;
-    height: 500px;
+    flex: 0 0 42%;
     overflow: auto;
 }
 
 .mp3-panel {
-    width: 28%;
-    height: 500px;
+    flex: 0 0 28%;
     overflow: auto;
 }
 
 .form-panel {
-    width: 30%;
-    height: 500px;
+    flex: 1 1 0;
     overflow: auto;
+}
+
+.splitter {
+    flex: 0 0 10px;
+    cursor: col-resize;
+    background: #3a4a5a;
+    border: 1px solid #5a6b7b;
+    border-radius: 4px;
+    margin: 0 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* vertical grip dots so it reads as draggable without trying */
+    background-image: radial-gradient(#cfd8e3 1.4px, transparent 1.4px);
+    background-size: 4px 7px;
+    background-position: center;
+    background-repeat: repeat-y;
+    transition: background-color 0.12s;
+}
+
+.splitter:hover,
+.splitter.dragging {
+    background-color: #0e639c;
+    border-color: #4fc3f7;
 }
 
 .tree,
@@ -237,6 +258,31 @@ button {
     font-weight: bold;
 }
 
+/* action button colors */
+.btn-edit {
+    background: #16a34a;
+}
+
+.btn-edit:hover {
+    background: #15803d;
+}
+
+.btn-delete {
+    background: #dc2626;
+}
+
+.btn-delete:hover {
+    background: #b91c1c;
+}
+
+.btn-test {
+    background: #2563eb;
+}
+
+.btn-test:hover {
+    background: #1d4ed8;
+}
+
 </style>
 
 <div class="header-bar">
@@ -261,6 +307,8 @@ button {
         {% endif %}
     </div>
 
+    <div class="splitter" data-splitter="left"></div>
+
     <div class="panel mp3-panel">
         <h2 class="section-title">MP3 Files ({{ mp3_files|length }})</h2>
 
@@ -279,6 +327,8 @@ button {
             <p>No MP3 files found.</p>
         {% endif %}
     </div>
+     <div class="splitter" data-splitter="right"></div>
+
      <div class="panel form-panel">
         <h2>Create Alarm</h2>
 
@@ -370,7 +420,7 @@ button {
                 <div class="row-actions">
                     <button
                         type="button"
-                        class="edit-click"
+                        class="btn-edit edit-click"
                         data-alarmid="{{ a.AlarmId }}"
                         data-tagid="{{ a.TagId }}"
                         data-tagpath="{{ a.TagPath }}"
@@ -389,8 +439,16 @@ button {
                         class="inline-form"
                         onsubmit="return confirm('Delete this alarm mapping?');"
                     >
-                        <button type="submit">Delete</button>
+                        <button type="submit" class="btn-delete">Delete</button>
                     </form>
+
+                    <button
+                        type="button"
+                        class="btn-test test-click"
+                        data-mp3file="{{ a.Mp3File }}"
+                    >
+                        Test
+                    </button>
                 </div>
             </td>
         </tr>
@@ -484,6 +542,66 @@ document.querySelectorAll(".edit-click").forEach(el => {
         });
 
         window.scrollTo({ top: 0, behavior: "smooth" });
+
+    });
+
+});
+
+// --- draggable splitters: each resizes the panel on its left ---
+document.querySelectorAll(".splitter").forEach(sp => {
+
+    sp.addEventListener("mousedown", e => {
+
+        const panel = sp.previousElementSibling;
+        const startX = e.clientX;
+        const startW = panel.getBoundingClientRect().width;
+
+        sp.classList.add("dragging");
+        document.body.style.userSelect = "none";
+
+        function onMove(ev) {
+            const w = Math.max(120, startW + (ev.clientX - startX));
+            panel.style.flex = "0 0 " + w + "px";
+        }
+
+        function onUp() {
+            sp.classList.remove("dragging");
+            document.body.style.userSelect = "";
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+        }
+
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+
+        e.preventDefault();
+    });
+
+});
+
+// --- Test button: preview the alarm's MP3 in the browser ---
+let testAudio = null;
+
+document.querySelectorAll(".test-click").forEach(el => {
+
+    el.addEventListener("click", () => {
+
+        const file = el.dataset.mp3file;
+
+        if (!file) {
+            alert("No MP3 file set for this alarm.");
+            return;
+        }
+
+        if (testAudio) {
+            testAudio.pause();
+        }
+
+        testAudio = new Audio("/mp3/" + encodeURIComponent(file));
+
+        testAudio.play().catch(() => {
+            alert("Cannot play '" + file + "'.\nFile not found on the MP3 share (Z:\\).");
+        });
 
     });
 

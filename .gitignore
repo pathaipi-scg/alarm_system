@@ -61,3 +61,11 @@ config/tagmaster.json
 
 dist/
 build/
+
+
+# ----------------------------------
+# Dev Run
+# ----------------------------------
+
+run_dev.bat
+CLAUDE.md

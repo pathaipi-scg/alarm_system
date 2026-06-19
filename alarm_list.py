@@ -1,6 +1,6 @@
 
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -265,3 +265,19 @@ def refresh_browser():
         "/",
         status_code=303
     )
+
+@app.get("/mp3/{filename}")
+def serve_mp3(filename: str):
+    # serve an MP3 from MP3_FOLDER so the browser can preview the alarm sound.
+    # restrict to a plain basename ending in .mp3 to block path traversal.
+    name = os.path.basename(filename)
+
+    if name != filename or not name.lower().endswith(".mp3"):
+        return HTMLResponse("Invalid file", status_code=400)
+
+    path = os.path.join(MP3_FOLDER, name)
+
+    if not os.path.isfile(path):
+        return HTMLResponse("Not found", status_code=404)
+
+    return FileResponse(path, media_type="audio/mpeg")
