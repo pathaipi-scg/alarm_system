@@ -4,7 +4,12 @@
 <ul class="tree">
     {% for key, value in node.items() %}
         {% if value is mapping and value.get('_leaf') %}
-            <li class="leaf">
+            <li class="leaf {{ 'used-leaf' if value.used else '' }}">
+                {% if value.used %}
+                <span class="tag-name used-item" title="already mapped to an alarm">
+                    {{ key }}
+                </span>
+                {% else %}
                 <span
                     class="tag-name tag-click"
                     data-tagid="{{ value.tagid }}"
@@ -12,6 +17,7 @@
                 >
                     {{ key }}
                 </span>
+                {% endif %}
                 <span class="tag-type">({{ value.datatype }})</span>
                 <span class="tag-id">ID: {{ value.tagid }}</span>
             </li>
@@ -30,10 +36,21 @@
 {% block content %}
 
 <style>
+html, body {
+    height: 100%;
+}
+
 body {
     font-family: Arial, Helvetica, sans-serif;
     background: #1e1e1e;
     color: #d4d4d4;
+    margin: 0;
+    padding: 16px;
+    box-sizing: border-box;
+    height: 100vh;
+    overflow: hidden;          /* keep everything in one screen, no page scrollbar */
+    display: flex;
+    flex-direction: column;
 }
 
 input,
@@ -81,6 +98,8 @@ button {
     display: flex;
     align-items: stretch;
     height: 500px;
+    flex: 0 0 auto;
+    min-height: 120px;
 }
 
 .opc-panel {
@@ -176,8 +195,42 @@ button {
 }
 
 .table-container {
-    height: 300px;
-    overflow-y: auto;
+    flex: 1 1 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* draggable bar to resize the mapping table height (like the other panels) */
+.splitter-h {
+    height: 10px;
+    cursor: row-resize;
+    background: #3a4a5a;
+    border: 1px solid #5a6b7b;
+    border-radius: 4px;
+    margin: 6px 0;
+    /* horizontal grip dots */
+    background-image: radial-gradient(#cfd8e3 1.4px, transparent 1.4px);
+    background-size: 7px 4px;
+    background-position: center;
+    background-repeat: repeat-x;
+    transition: background-color 0.12s;
+}
+
+.splitter-h:hover,
+.splitter-h.dragging {
+    background-color: #0e639c;
+    border-color: #4fc3f7;
+}
+
+/* tags / mp3 already used: greyed out and not selectable */
+.used-leaf {
+    opacity: 0.55;
+}
+
+.used-item,
+.mp3-used {
+    color: #777;
+    cursor: not-allowed;
 }
 
 .mapping-table thead th {
@@ -316,10 +369,16 @@ button {
         <ul class="mp3-list">
             {% for f in mp3_files %}
             <li>
+                {% if f.lower() in used_mp3 %}
+                <span class="mp3-used" title="already used by an alarm">
+                    {{ f }}
+                </span>
+                {% else %}
                 <span class="mp3-click"
                     data-file="{{ f }}">
                     {{ f }}
                 </span>
+                {% endif %}
             </li>
             {% endfor %}
         </ul>
@@ -404,7 +463,7 @@ button {
         </form>
      </div>
 </div>
-<hr>
+<div class="splitter-h" id="table-splitter" title="drag to resize table height"></div>
 
 
 <h2>Current Alarm Mapping</h2>
@@ -589,6 +648,40 @@ document.querySelectorAll(".splitter").forEach(sp => {
     });
 
 });
+
+// --- horizontal splitter: drag to resize the mapping table height ---
+(() => {
+    const bar = document.getElementById("table-splitter");
+    const topRow = document.querySelector(".top-row");
+    if (!bar || !topRow) return;
+
+    bar.addEventListener("mousedown", e => {
+
+        const startY = e.clientY;
+        const startH = topRow.getBoundingClientRect().height;
+
+        bar.classList.add("dragging");
+        document.body.style.userSelect = "none";
+
+        function onMove(ev) {
+            // drag up -> top panels shrink -> table grows to fill; drag down -> reverse
+            const h = Math.max(120, startH + (ev.clientY - startY));
+            topRow.style.height = h + "px";
+        }
+
+        function onUp() {
+            bar.classList.remove("dragging");
+            document.body.style.userSelect = "";
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+        }
+
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+
+        e.preventDefault();
+    });
+})();
 
 // --- Test button: preview the alarm's MP3 in the browser ---
 let testAudio = null;

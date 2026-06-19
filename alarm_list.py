@@ -65,7 +65,8 @@ def reload_alarm():
             ex
         )
 
-def build_tree(rows):
+def build_tree(rows, used_tagids=None):
+    used_tagids = used_tagids or set()
     tree = {}
 
     for tagid, path, dtype in rows:
@@ -79,6 +80,7 @@ def build_tree(rows):
             "tagid": tagid,
             "datatype": dtype,
             "fullpath": path,
+            "used": tagid in used_tagids,
             "_leaf": True
         }
 
@@ -89,20 +91,22 @@ def home(request: Request):
     conn = get_conn()
     cur = conn.cursor()
 
+    # tags / mp3 files already mapped to an alarm (shown but greyed-out, not selectable)
+    cur.execute("SELECT TagId, Mp3File FROM Alarm_Lists")
+    used_rows = cur.fetchall()
+    used_tagids = {r.TagId for r in used_rows}
+    used_mp3 = {(r.Mp3File or "").lower() for r in used_rows}
+
     cur.execute("""
         SELECT TagId, Path, DataType
         FROM TagMaster
         WHERE IsActive = 1
-        AND TagId NOT IN (
-            SELECT TagId
-            FROM Alarm_Lists
-        )
         ORDER BY Path
     """)
 
     tags = cur.fetchall()
 
-    tree = build_tree(tags)
+    tree = build_tree(tags, used_tagids)
 
     mp3_files = []
     if os.path.exists(MP3_FOLDER):
@@ -123,6 +127,7 @@ def home(request: Request):
         "request": request,
         "tree": tree,
         "mp3_files": mp3_files,
+        "used_mp3": used_mp3,
         "alarms": alarms
     })
 
@@ -248,31 +253,12 @@ def delete_alarm(alarm_id: int):
 @app.post("/refresh")
 def refresh_browser():
 
-    #subprocess.Popen([
+    # rebuild the OPC tag tree only (e.g. after adding a machine).
+    # does NOT touch Alarm_Lists.
     subprocess.run([
         sys.executable,
         BROWSER_SCRIPT
     ])
-
-    conn = get_conn()
-    cur = conn.cursor()
-
-    cur.execute("""
-        DELETE a
-        FROM Alarm_Lists a
-        INNER JOIN TagMaster t
-            ON a.TagId = t.TagId
-        WHERE t.IsActive = 0
-    """)
-
-    deleted = cur.rowcount
-
-    conn.commit()
-    conn.close()
-
-    if deleted > 0:
-        print(f"DELETE INVALID ALARMS = {deleted}")
-        reload_alarm()
 
     return RedirectResponse(
         "/",

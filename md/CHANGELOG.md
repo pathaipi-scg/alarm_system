@@ -7,6 +7,76 @@ All significant project changes should be documented here.
 
 ## Unreleased
 
+### 2026-06-19 (stop /refresh from deleting alarms)
+
+Change Summary
+
+Remove the Alarm_Lists prune from POST /refresh. Refreshing the OPC tree now only re-runs browser.py and redirects; it no longer deletes alarm rows whose TagMaster tag is inactive. Previously a Refresh after a TagMaster rebuild could wipe many/all alarm mappings at once.
+
+Files Modified
+
+- alarm_list.py
+- md/CHANGELOG.md
+
+Reason
+
+Operators reported alarm mappings disappearing after pressing Refresh OPC Tree; the button is only meant to rebuild the tag tree when machines are added, not to delete configuration.
+
+Risks
+
+Low/positive. Removes a destructive side effect. Alarms for tags that go inactive are no longer auto-removed (acceptable; they can be deleted manually). /refresh no longer calls reload_alarm() since it no longer mutates Alarm_Lists.
+
+Rollback Method
+
+Revert Git Commit
+
+### 2026-06-19 (full-viewport layout)
+
+Change Summary
+
+Lay the page out as a full-height flex column (body 100vh, overflow hidden) so it stays within one screen with no page scrollbar. The Current Alarm Mapping table fills remaining space; the horizontal bar above it resizes the top panels (drag up shrinks top panels so the table grows).
+
+Files Modified
+
+- templates/alarm_list.html
+- md/CHANGELOG.md
+
+Reason
+
+Operator wanted the mapping table resizable within a single screen instead of growing the page.
+
+Risks
+
+Low. CSS/JS layout only.
+
+Rollback Method
+
+Revert Git Commit
+
+### 2026-06-19 (used items greyed + resizable table)
+
+Change Summary
+
+Make the Current Alarm Mapping table vertically resizable (CSS resize on .table-container). Show OPC tags and MP3 files that are already mapped to an alarm as greyed-out and non-selectable instead of hiding used tags: home() now selects all active TagMaster tags (dropping the NOT IN Alarm_Lists filter) and passes used TagId/Mp3File sets; build_tree marks each leaf with a "used" flag; the template renders used tags/mp3 as plain (non-clickable) greyed spans.
+
+Files Modified
+
+- alarm_list.py
+- templates/alarm_list.html
+- md/CHANGELOG.md
+
+Reason
+
+Operators wanted to resize the mapping table and to clearly see (but not re-pick) tags/sounds already in use.
+
+Risks
+
+Low. UI/query-shaping only; no DB schema or write-path change. The OPC tree now lists all active tags (used ones greyed) instead of only unused ones, so the tree is slightly larger.
+
+Rollback Method
+
+Revert Git Commit
+
 ### 2026-06-19 (Repeat field)
 
 Change Summary
