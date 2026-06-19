@@ -118,27 +118,16 @@ button {
 }
 
 .splitter {
-    flex: 0 0 10px;
+    flex: 0 0 4px;
     cursor: col-resize;
-    background: #3a4a5a;
-    border: 1px solid #5a6b7b;
-    border-radius: 4px;
-    margin: 0 3px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* vertical grip dots so it reads as draggable without trying */
-    background-image: radial-gradient(#cfd8e3 1.4px, transparent 1.4px);
-    background-size: 4px 7px;
-    background-position: center;
-    background-repeat: repeat-y;
+    background: #555;
+    margin: 0 2px;
     transition: background-color 0.12s;
 }
 
 .splitter:hover,
 .splitter.dragging {
     background-color: #0e639c;
-    border-color: #4fc3f7;
 }
 
 .tree,
@@ -202,24 +191,16 @@ button {
 
 /* draggable bar to resize the mapping table height (like the other panels) */
 .splitter-h {
-    height: 10px;
+    height: 4px;
     cursor: row-resize;
-    background: #3a4a5a;
-    border: 1px solid #5a6b7b;
-    border-radius: 4px;
-    margin: 6px 0;
-    /* horizontal grip dots */
-    background-image: radial-gradient(#cfd8e3 1.4px, transparent 1.4px);
-    background-size: 7px 4px;
-    background-position: center;
-    background-repeat: repeat-x;
+    background: #555;
+    margin: 8px 0;
     transition: background-color 0.12s;
 }
 
 .splitter-h:hover,
 .splitter-h.dragging {
     background-color: #0e639c;
-    border-color: #4fc3f7;
 }
 
 /* tags / mp3 already used: greyed out and not selectable */
@@ -503,8 +484,9 @@ button {
                     <form
                         method="post"
                         action="/delete/{{ a.AlarmId }}"
-                        class="inline-form"
-                        onsubmit="return confirm('Delete this alarm mapping?');"
+                        class="inline-form delete-form"
+                        data-tagpath="{{ a.TagPath }}"
+                        data-mp3file="{{ a.Mp3File }}"
                     >
                         <button type="submit" class="btn-delete">Delete</button>
                     </form>
@@ -682,6 +664,27 @@ document.querySelectorAll(".splitter").forEach(sp => {
         e.preventDefault();
     });
 })();
+
+// --- Delete: confirm showing which tag / mp3 is being removed ---
+document.querySelectorAll(".delete-form").forEach(f => {
+
+    f.addEventListener("submit", e => {
+
+        const tag = f.dataset.tagpath || "(unknown tag)";
+        const mp3 = f.dataset.mp3file || "(no mp3)";
+
+        const ok = confirm(
+            "Delete this alarm mapping?\n\n" +
+            "Tag: " + tag + "\n" +
+            "MP3: " + mp3
+        );
+
+        if (!ok) {
+            e.preventDefault();
+        }
+    });
+
+});
 
 // --- Test button: preview the alarm's MP3 in the browser ---
 let testAudio = null;
