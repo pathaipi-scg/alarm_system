@@ -7,10 +7,18 @@ from fastapi.templating import Jinja2Templates
 import pyodbc, os
 import subprocess
 import sys
+import time
 
 from config.config import *
 
-from pyModbusTCP.client import ModbusClient
+from influxdb import InfluxDBClient
+
+# Reload signal lives in InfluxDB (the Mini-PC running alarm_sound.py has no
+# Modbus/internet, but it does read InfluxDB). We write the field to 1; the
+# alarm_sound side re-subscribes OPC then writes it back to 0 as an ack.
+RELOAD_MEASUREMENT = "system"
+RELOAD_FIELD = "reload_alarm_sound"
+RELOAD_ACK_TIMEOUT = 5.0   # seconds to wait for alarm_sound.py to ack (0)
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -24,39 +32,50 @@ def get_conn():
         f"SERVER={SQL_SERVER};DATABASE={SQL_DB};UID={SQL_USER};PWD={SQL_PASS};"
     )
 
+def _influx_client():
+    return InfluxDBClient(
+        host=INFLUX_HOST,
+        port=INFLUX_PORT,
+        username=INFLUX_USER,
+        password=INFLUX_PASS,
+        database=INFLUX_DB,
+    )
+
+
+def _read_reload_flag(client):
+    # return the latest reload_alarm_sound value, or None if no point yet.
+    rs = client.query(
+        f'SELECT last("{RELOAD_FIELD}") FROM "{RELOAD_MEASUREMENT}"'
+    )
+    points = list(rs.get_points())
+    if not points:
+        return None
+    return points[0].get("last")
+
+
 def reload_alarm():
-
+    # Signal alarm_sound.py to re-subscribe OPC by writing reload_alarm_sound=1.
+    # alarm_sound.py writes it back to 0 when done; we wait briefly for that ack
+    # but never block the HTTP response beyond RELOAD_ACK_TIMEOUT.
     try:
+        client = _influx_client()
 
-        c = ModbusClient(
-            host="172.28.231.251",
-            port=502,
-            auto_open=True
-        )
+        client.write_points([{
+            "measurement": RELOAD_MEASUREMENT,
+            "fields": {RELOAD_FIELD: 1},
+        }])
+        print(f"RELOAD_ALARM => {RELOAD_FIELD}=1")
 
-        regs = c.read_holding_registers(
-            12002,
-            1
-        )
+        deadline = time.monotonic() + RELOAD_ACK_TIMEOUT
+        while time.monotonic() < deadline:
+            time.sleep(0.5)
+            if _read_reload_flag(client) == 0:
+                print("RELOAD_ALARM => ack received (=0)")
+                break
+        else:
+            print("RELOAD_ALARM => no ack within timeout (alarm_sound.py?)")
 
-        if not regs:
-
-            print(
-                "READ RELOAD_ALARM FAILED"
-            )
-
-            return
-
-        current = regs[0]
-
-        c.write_single_register(
-            12002,
-            current + 1
-        )
-
-        print(
-            f"RELOAD_ALARM => {current+1}"
-        )
+        client.close()
 
     except Exception as ex:
 

@@ -7,6 +7,30 @@ All significant project changes should be documented here.
 
 ## Unreleased
 
+### 2026-06-26 (reload signal via InfluxDB instead of Modbus)
+
+Change Summary
+
+Replace the Modbus hot-reload signal with an InfluxDB handshake. reload_alarm() no longer increments Modbus holding register 12002 on 172.28.231.251; instead it writes measurement "system" field reload_alarm_sound=1 to InfluxDB, then waits up to RELOAD_ACK_TIMEOUT (5s) for alarm_sound.py to write it back to 0 as an ack (logged, non-blocking past the timeout). Added influxdb==5.3.2; dropped the pyModbusTCP import from alarm_list.py.
+
+Files Modified
+
+- alarm_list.py
+- requirements.txt
+- md/CHANGELOG.md
+
+Reason
+
+The Mini-PC running alarm_sound.py has no Modbus stack and no network route to the register host, so it never received the old reload signal — a deleted/disabled alarm kept playing because the sound side used stale definitions. It can read InfluxDB, so the signal now goes there.
+
+Risks
+
+Requires INFLUX_* config set and reachable from the alarm_list host; if InfluxDB is down the write fails (logged, UI still redirects). The ack wait adds up to 5s latency to save/delete/refresh when alarm_sound.py does not ack. alarm_sound.py (separate project) must be updated to read reload_alarm_sound, re-subscribe OPC, and write 0 back — until then no ack arrives (timeout path).
+
+Rollback Method
+
+Revert Git Commit
+
 ### 2026-06-19 (stop /refresh from deleting alarms)
 
 Change Summary
